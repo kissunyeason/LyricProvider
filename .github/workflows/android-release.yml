@@ -1,0 +1,85 @@
+name: Android Multi-App Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: 'Build Type'
+        type: choice
+        options:
+          - debug
+          - release
+        default: debug
+        required: true
+
+jobs:
+  build-and-release:
+    name: Build and Release Apps
+    runs-on: ubuntu-latest
+
+    env:
+      BUILD_TYPE: ${{ github.event.inputs.build-type || 'release' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Setup Gradle with Caching
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-disabled: false
+
+      - name: Decode Keystore
+        if: ${{ github.event.inputs.build-type == 'release' || env.BUILD_TYPE == 'release' }}
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | base64 -d > release.jks
+
+      - name: Build APKs with Caching
+        run: |
+          if [ "$BUILD_TYPE" = "release" ]; then
+            ./gradlew assembleRelease --build-cache
+          else
+            ./gradlew assembleDebug --build-cache
+          fi
+        env:
+          RELEASE_STORE_FILE: ../release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Collect APKs to flat directory
+        run: |
+          mkdir -p collected-apks
+
+          # 复制所有 APK 文件
+          find . -name "*.apk" -path "*/build/outputs/apk/${{ env.BUILD_TYPE }}/*" -exec cp {} collected-apks/ \;
+
+          echo "Collected files:"
+          ls -lh collected-apks/
+
+      - name: Upload APKs to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_TYPE }}-apks
+          path: collected-apks/
+          if-no-files-found: error
+          archive: false
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f release.jks || true
+          rm -rf collected-apks || true
