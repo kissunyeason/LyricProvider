@@ -15,7 +15,7 @@ plugins {
 configure<LibraryExtension> {
     namespace = "io.github.proify.lyricon.library.carprovider"
     compileSdk {
-        version = release(36)
+        version = release(rootProject.extra.get("compileSdkVersion") as Int)
     }
 
     defaultConfig {
