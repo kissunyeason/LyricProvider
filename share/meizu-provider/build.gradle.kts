@@ -15,7 +15,7 @@ plugins {
 configure<LibraryExtension> {
     namespace = "io.github.proify.lyricon.library.meizuprovider"
     compileSdk {
-        version = release(36)
+        version = release(rootProject.extra.get("compileSdkVersion") as Int)
     }
 
     defaultConfig {
