@@ -13,7 +13,7 @@ import com.highcapable.yukihookapi.hook.xposed.proxy.IYukiHookXposedInit
 class HookEntry : IYukiHookXposedInit {
     override fun onHook() {
         YukiHookAPI.encase {
-            loadApp(Constants.MUSIC_PACKAGE_NAME, RetroMusic())
+            loadApp(Constants.MUSIC_PACKAGE_NAME, RetroMusic)
         }
     }
 
